@@ -6,10 +6,7 @@ import subprocess
 import time
 from collections.abc import Generator, Sequence
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any
-
-file = Path('./test.mp3')
 
 
 def mpv_open(
@@ -75,6 +72,10 @@ def wait_for_load(sock: socket.socket) -> None:
     _wait_for(sock, 'playback-restart')
 
 
+def get_duration(sock: socket.socket) -> float:
+    return send_command(sock, ['get_property', 'duration'])['data']
+
+
 def set_ab(
     sock: socket.socket,
     start: float,
@@ -89,19 +90,3 @@ def set_ab(
     send_command(sock, ['seek', str(start), 'absolute'], event='seek')
     send_command(sock, ['ab-loop'])
     send_command(sock, ['keypress', 'space'])
-
-
-with TemporaryDirectory() as base:
-    ipc = Path(base) / 'ipc.sock'
-
-    start = 1
-    end = -1
-
-    proc, sock = mpv_open(file, ipc)
-    wait_for_load(sock)
-    set_ab(sock, start, end)
-
-    try:
-        proc.wait()
-    except KeyboardInterrupt:
-        pass
