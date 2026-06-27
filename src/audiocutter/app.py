@@ -124,10 +124,10 @@ class App:
         sys.exit(0)
 
     def loop(self) -> None:
-        ui_string = self.build_ui()
-        print(ui_string, end='', flush=True)
-
         try:
+            ui_string = self.build_ui()
+            print(ui_string, end='', flush=True)
+
             while True:
                 if self.handle_keypress(get_input()):
                     s, e = sorted((self.p1, self.p2))
@@ -137,6 +137,8 @@ class App:
                 print(f'\x1b[{n}F\x1b[J{ui_string}', end='', flush=True)
         except KeyboardInterrupt:
             pass
+        finally:
+            self.proc.terminate()
 
     def run(self) -> None:
         with terminal_context():
