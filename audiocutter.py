@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import socket
 import subprocess
@@ -15,6 +16,8 @@ def mpv_open(
     file: Path,
     ipc: Path,
 ) -> tuple[subprocess.Popen, socket.socket]:
+    devnull_write = open(os.devnull, 'w')
+    devnull_read = open(os.devnull, 'r')
     proc = subprocess.Popen(
         [
             'mpv',
@@ -24,6 +27,9 @@ def mpv_open(
             f'--input-ipc-server={ipc}',
             str(file),
         ],
+        stdin=devnull_read,
+        stdout=devnull_write,
+        stderr=devnull_write,
     )
 
     while not ipc.exists():
