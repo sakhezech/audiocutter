@@ -9,6 +9,9 @@ dependencies = []
 [project.optional-dependencies]
 dev = ['ruff', 'faterunner']
 
+[project.scripts]
+audiocutter = 'audiocutter.__main__:cli'
+
 [tool.ruff]
 line-length = 79
 [tool.ruff.format]
