@@ -7,12 +7,14 @@ from collections.abc import Generator
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from .ffmpeg import cut_audio
 from .mpv import get_duration, mpv_open, set_ab, wait_for_load
 
 
 class App:
-    def __init__(self, file: Path) -> None:
+    def __init__(self, file: Path, output: Path | None) -> None:
         self.file = file
+        self.output = output
 
         with TemporaryDirectory() as base:
             ipc = Path(base) / 'ipc.sock'
@@ -115,8 +117,11 @@ class App:
             return False
 
     def cut_audio(self) -> None:
-        # TODO: implement
-        pass
+        self.proc.terminate()
+        s, e = sorted((self.p1, self.p2))
+        print()
+        cut_audio(self.file, self.output, s, e)
+        sys.exit(0)
 
     def loop(self) -> None:
         ui_string = self.build_ui()
