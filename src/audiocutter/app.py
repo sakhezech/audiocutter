@@ -19,8 +19,9 @@ class App:
             self.proc, self.sock = mpv_open(file, ipc)
         wait_for_load(self.sock)
 
+        self.duration = get_duration(self.sock)
         self.p1 = 0
-        self.p2 = self.duration = get_duration(self.sock)
+        self.p2 = self.duration
 
         set_ab(self.sock, self.p1, self.p2)
 
@@ -37,6 +38,22 @@ class App:
             'exit': ('\x1b'),
             'done': ('\n',),
         }
+
+    @property
+    def p1(self):
+        return self._p1
+
+    @p1.setter
+    def p1(self, value):
+        self._p1 = min(max(0, value), self.duration)
+
+    @property
+    def p2(self):
+        return self._p2
+
+    @p2.setter
+    def p2(self, value):
+        self._p2 = min(max(0, value), self.duration)
 
     def build_ui(self) -> str:
         start, end = sorted((self.p1, self.p2))
