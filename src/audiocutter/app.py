@@ -31,9 +31,9 @@ class App:
 
         set_ab(self.sock, *self.points)
 
-        self.top_chset = ('▁', '▂', '▃', '▄', '▅', '▆', '▇', '█')
-        self.bot_chset = ('▔', '🮂', '🮃', '▀', '🮄', '🮅', '🮆', '█')
-        self.height = 1
+        self.top_chset = (' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█')
+        self.bot_chset = (' ', '▔', '🮂', '🮃', '▀', '🮄', '🮅', '🮆', '█')
+        self.height = 1 * 8 - 1
 
         self.keybinds = {
             'left': ('<', 'h', '\x1b[D'),
@@ -50,7 +50,7 @@ class App:
         values = make_waveform_values(self.wave, width)
 
         raw_lines = [
-            *reversed(build_waveform(self.top_chset, values, height)),
+            *reversed(build_waveform(self.top_chset, values, height, 1)),
             *build_waveform(self.bot_chset, values, height),
         ]
 
@@ -146,28 +146,14 @@ class App:
 
 
 def build_waveform(
-    chset: Sequence[str], values: Sequence[float], height: int
+    chset: Sequence[str], values: Sequence[float], max_: int, offset: int = 0
 ) -> Sequence[str]:
-    chset2 = (' ', *chset)
-    max_ = len(chset2) * height - 1
-    res = []
-    for line in range(height):
-        c = chset if line == 0 else chset2
-        line = ''.join(
-            c[
-                max(
-                    0,
-                    min(
-                        int(v * (max_ - 1)) - (line * len(chset2)),
-                        len(c) - 1,
-                    ),
-                )
-            ]
-            for v in values
-        )
-
-        res.append(line)
-    return res
+    res = [[] for _ in range(0, max_ + offset, 8)]
+    for v in values:
+        bv = int(v * max_) + offset
+        for i in range(len(res)):
+            res[i].append(chset[max(0, min(bv - i * 8, 8))])
+    return [''.join(v) for v in res]
 
 
 def colorize_line(line: str, left_pos: int, right_pos: int, color: str) -> str:
