@@ -22,14 +22,11 @@ class App:
         wait_for_load(self.sock)
 
         self.duration = get_duration(self.sock)
-        self.p1 = 0
-        self.p2 = self.duration
-
-        set_ab(self.sock, self.p1, self.p2)
-
-        self.p1_selected = True
-
+        self.points = [0, self.duration]
+        self.point_selected = 0
         self.jump_size = 1
+
+        set_ab(self.sock, *self.points)
 
         self.keybinds = {
             'swap': ('s', ' '),
@@ -41,24 +38,8 @@ class App:
             'done': ('\n',),
         }
 
-    @property
-    def p1(self):
-        return self._p1
-
-    @p1.setter
-    def p1(self, value):
-        self._p1 = min(max(0, value), self.duration)
-
-    @property
-    def p2(self):
-        return self._p2
-
-    @p2.setter
-    def p2(self, value):
-        self._p2 = min(max(0, value), self.duration)
-
     def build_ui(self) -> str:
-        start, end = sorted((self.p1, self.p2))
+        start, end = sorted(self.points)
         width, _ = os.get_terminal_size()
         width -= 2
 
@@ -85,9 +66,13 @@ class App:
         parts.extend((bar, arrows))
         return '\n'.join(parts)
 
+    def add_to_curr_point(self, jump: float) -> None:
+        v = self.points[self.point_selected]
+        self.points[self.point_selected] = min(max(0, v + jump), self.duration)
+
     def handle_keypress(self, key: str) -> bool:
         if key in self.keybinds['swap']:
-            self.p1_selected = not self.p1_selected
+            self.point_selected = (self.point_selected + 1) % 2
             return False
         elif key in self.keybinds['small']:
             self.jump_size /= 2
@@ -96,16 +81,10 @@ class App:
             self.jump_size *= 2
             return False
         elif key in self.keybinds['left']:
-            if self.p1_selected:
-                self.p1 -= self.jump_size
-            else:
-                self.p2 -= self.jump_size
+            self.add_to_curr_point(-self.jump_size)
             return True
         elif key in self.keybinds['right']:
-            if self.p1_selected:
-                self.p1 += self.jump_size
-            else:
-                self.p2 += self.jump_size
+            self.add_to_curr_point(self.jump_size)
             return True
         elif key in self.keybinds['done']:
             self.cut_audio()
@@ -118,7 +97,7 @@ class App:
 
     def cut_audio(self) -> None:
         self.proc.terminate()
-        s, e = sorted((self.p1, self.p2))
+        s, e = sorted(self.points)
         print()
         cut_audio(self.file, self.output, s, e)
         sys.exit(0)
@@ -130,7 +109,7 @@ class App:
 
             while True:
                 if self.handle_keypress(get_input()):
-                    s, e = sorted((self.p1, self.p2))
+                    s, e = sorted(self.points)
                     set_ab(self.sock, s, e, reset=True)
                 n = ui_string.count('\n')
                 ui_string = self.build_ui()
