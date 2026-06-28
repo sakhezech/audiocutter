@@ -31,6 +31,10 @@ class App:
 
         set_ab(self.sock, *self.points)
 
+        self.top_chset = ('▁', '▂', '▃', '▄', '▅', '▆', '▇', '█')
+        self.bot_chset = ('▔', '🮂', '🮃', '▀', '🮄', '🮅', '🮆', '█')
+        self.height = 1
+
         self.keybinds = {
             'left': ('<', 'h', '\x1b[D'),
             'right': ('>', 'l', '\x1b[C'),
@@ -42,8 +46,20 @@ class App:
         }
 
     @functools.cache
-    def get_waveform_values(self, width: int) -> Sequence[float]:
-        return make_waveform_values(self.wave, width)
+    def build_waveform_2(self, width: int, height: int) -> Sequence[str]:
+        values = make_waveform_values(self.wave, width)
+
+        raw_lines = [
+            *reversed(build_waveform(self.top_chset, values, height)),
+            *build_waveform(self.bot_chset, values, height),
+        ]
+
+        raw_lines[0] = f'┌{raw_lines[0]}┐'
+        for i, line in enumerate(raw_lines[1:-1], 1):
+            raw_lines[i] = f'│{line}│'
+        raw_lines[-1] = f'└{raw_lines[-1]}┘'
+
+        return raw_lines
 
     def build_ui(self) -> str:
         start, end = sorted(self.points)
@@ -54,24 +70,11 @@ class App:
         right_pos = int((end / self.duration) * (width - 1))
 
         control = f'jump size = {self.jump_size:.2f}s'
-        values = self.get_waveform_values(width)
 
-        gray = '\x1b[38;5;8m'  # ]
-        reset = '\x1b[39m'  # ]
-
-        lines = []
-        for chset, surr in [
-            (['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'], '┌┐'),
-            (['▔', '🮂', '🮃', '▀', '🮄', '🮅', '🮆', '█'], '└┘'),
-        ]:
-            l_surr, r_surr = surr
-            line = ''.join(chset[int(v * (len(chset) - 1))] for v in values)
-            line = (
-                f'{gray}{l_surr}{line[:left_pos]}{reset}'
-                f'{line[left_pos : right_pos + 1]}'
-                f'{gray}{line[right_pos + 1 :]}{r_surr}{reset}'
-            )
-            lines.append(line)
+        lines = [
+            colorize_line(line, left_pos + 1, right_pos + 1, '\x1b[38;5;8m')
+            for line in self.build_waveform_2(width, self.height)
+        ]
 
         arrows = f'{" " * (left_pos + 1)}^'
         if left_pos != right_pos:
@@ -139,6 +142,40 @@ class App:
     def run(self) -> None:
         with terminal_context():
             self.loop()
+
+
+def build_waveform(
+    chset: Sequence[str], values: Sequence[float], height: int
+) -> Sequence[str]:
+    chset2 = (' ', *chset)
+    max_ = len(chset2) * height - 1
+    res = []
+    for line in range(height):
+        c = chset if line == 0 else chset2
+        line = ''.join(
+            c[
+                max(
+                    0,
+                    min(
+                        int(v * (max_ - 1)) - (line * len(chset2)),
+                        len(c) - 1,
+                    ),
+                )
+            ]
+            for v in values
+        )
+
+        res.append(line)
+    return res
+
+
+def colorize_line(line: str, left_pos: int, right_pos: int, color: str) -> str:
+    reset = '\x1b[39m'
+    return (
+        f'{color}{line[:left_pos]}{reset}'
+        f'{line[left_pos : right_pos + 1]}'
+        f'{color}{line[right_pos + 1 :]}{reset}'
+    )
 
 
 @contextlib.contextmanager
