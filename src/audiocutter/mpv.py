@@ -43,7 +43,7 @@ def _wait_for(sock: socket.socket, wait: str | int) -> dict[str, Any]:
     while True:
         read = sock.recv(2**12)
         try:
-            results = [json.loads(x) for x in (buff + read).splitlines()]
+            results = [json.loads(x) for x in (buff + read).splitlines() if x]
         except json.JSONDecodeError:
             buff.extend(read)
             continue
