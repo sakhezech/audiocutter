@@ -50,8 +50,8 @@ class App:
         from_right = width - right_pos
         delta = right_pos - left_pos
 
-        if delta == 0:
-            delta = 1
+        if from_right > 0:
+            delta += 1
             from_right -= 1
 
         control = f'jump size = {self.jump_size:.2f}s'
