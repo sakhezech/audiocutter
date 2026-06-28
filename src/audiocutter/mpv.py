@@ -4,7 +4,7 @@ import random
 import socket
 import subprocess
 import time
-from collections.abc import Generator, Sequence
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -38,16 +38,17 @@ def mpv_open(
     return proc, sock
 
 
-def _read_results(
-    string: str | bytes,
-) -> Generator[dict[str, Any], None, None]:
-    for x in string.splitlines():
-        yield json.loads(x)
-
-
 def _wait_for(sock: socket.socket, wait: str | int) -> dict[str, Any]:
+    buff = bytearray()
     while True:
-        for res in _read_results(sock.recv(2**12)):
+        read = sock.recv(2**12)
+        try:
+            results = [json.loads(x) for x in (buff + read).splitlines()]
+        except json.JSONDecodeError:
+            buff.extend(read)
+            continue
+        buff.clear()
+        for res in results:
             if isinstance(wait, int):
                 if res.get('request_id') == wait:
                     return res
