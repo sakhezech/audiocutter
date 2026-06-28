@@ -9,9 +9,13 @@ from pathlib import Path
 def cut_audio(
     file: Path, output: Path | None, start: float, end: float
 ) -> None:
+    base_name = file.name.removesuffix(file.suffix)
+    name = Path(f'{base_name}_{start:.2f}_to_{end:.2f}{file.suffix}')
     if output is None:
-        base_name = file.name.removesuffix(file.suffix)
-        output = Path(f'{base_name}_{start:.2f}_to_{end:.2f}{file.suffix}')
+        output = name
+    elif output.exists() and output.is_dir():
+        output /= name
+
     codec = output.suffix if output.suffix != file.suffix else 'copy'
     subprocess.run(
         [
