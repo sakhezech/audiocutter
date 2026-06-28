@@ -1,6 +1,7 @@
 import contextlib
 import functools
 import os
+import shutil
 import sys
 import termios
 import tty
@@ -46,7 +47,7 @@ class App:
 
     def build_ui(self) -> str:
         start, end = sorted(self.points)
-        width, _ = os.get_terminal_size()
+        width, _ = shutil.get_terminal_size()
         width -= 2
 
         left_pos = int((start / self.duration) * (width - 1))
