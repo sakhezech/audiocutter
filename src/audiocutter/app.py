@@ -32,13 +32,13 @@ class App:
         set_ab(self.sock, *self.points)
 
         self.keybinds = {
-            'swap': ('s', ' '),
-            'left': ('<', 'h'),
-            'right': ('>', 'l'),
-            'small': ('-', 'j'),
-            'big': ('+', 'k'),
-            'exit': ('\x1b'),
-            'done': ('\n',),
+            'left': ('<', 'h', '\x1b[D'),
+            'right': ('>', 'l', '\x1b[C'),
+            'up': ('+', 'k', '\x1b[A'),
+            'down': ('-', 'j', '\x1b[B'),
+            'swap': (' ',),
+            'cut': ('\n',),
+            'exit': ('\x1b', 'q'),
         }
 
     @functools.cache
@@ -92,22 +92,22 @@ class App:
         self.points[self.point_selected] = min(max(0, v + jump), self.duration)
 
     def handle_keypress(self, key: str) -> bool:
-        if key in self.keybinds['swap']:
-            self.point_selected = (self.point_selected + 1) % 2
-            return False
-        elif key in self.keybinds['small']:
-            self.jump_size /= 2
-            return False
-        elif key in self.keybinds['big']:
-            self.jump_size *= 2
-            return False
-        elif key in self.keybinds['left']:
+        if key in self.keybinds['left']:
             self.add_to_curr_point(-self.jump_size)
             return True
         elif key in self.keybinds['right']:
             self.add_to_curr_point(self.jump_size)
             return True
-        elif key in self.keybinds['done']:
+        elif key in self.keybinds['up']:
+            self.jump_size *= 2
+            return False
+        elif key in self.keybinds['down']:
+            self.jump_size /= 2
+            return False
+        elif key in self.keybinds['swap']:
+            self.point_selected = (self.point_selected + 1) % 2
+            return False
+        elif key in self.keybinds['cut']:
             self.cut_audio()
             return False
         elif key in self.keybinds['exit']:
