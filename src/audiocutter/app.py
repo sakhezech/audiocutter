@@ -43,16 +43,12 @@ class App:
         width, _ = os.get_terminal_size()
         width -= 2
 
-        left_pos = int((start / self.duration) * width)
-        right_pos = int((end / self.duration) * width)
+        left_pos = int((start / self.duration) * (width - 1))
+        right_pos = int((end / self.duration) * (width - 1))
 
         from_left = left_pos
-        from_right = width - right_pos
-        delta = right_pos - left_pos
-
-        if from_right > 0:
-            delta += 1
-            from_right -= 1
+        from_right = width - right_pos - 1
+        delta = width - from_left - from_right
 
         control = f'jump size = {self.jump_size:.2f}s'
         bar = f'[{"-" * from_left}{"#" * delta}{"-" * from_right}]'
