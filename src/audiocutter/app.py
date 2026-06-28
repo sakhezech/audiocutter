@@ -69,22 +69,23 @@ class App:
         left_pos = int((start / self.duration) * (width - 1))
         right_pos = int((end / self.duration) * (width - 1))
 
-        control = f'jump size = {self.jump_size:.2f}s'
+        lines = []
 
-        lines = [
+        status_bar = f'jump size = {self.jump_size:.2f}s'
+        if len(status_bar) <= width + 2:
+            lines.append(status_bar)
+
+        lines.extend(
             colorize_line(line, left_pos + 1, right_pos + 1, '\x1b[38;5;8m')
             for line in self.build_waveform_2(width, self.height)
-        ]
+        )
 
         arrows = f'{" " * (left_pos + 1)}^'
         if left_pos != right_pos:
             arrows += f'{" " * (right_pos - left_pos - 1)}^'
+        lines.append(arrows)
 
-        parts = []
-        if len(control) <= width:
-            parts.append(control)
-        parts.extend((*lines, arrows))
-        return '\n'.join(parts)
+        return '\n'.join(lines)
 
     def add_to_curr_point(self, jump: float) -> None:
         v = self.points[self.point_selected]
