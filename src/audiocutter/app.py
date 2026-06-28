@@ -59,13 +59,22 @@ class App:
         control = f'jump size = {self.jump_size:.2f}s'
         values = self.get_waveform_values(width)
 
-        top = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█']
-        bot = ['▔', '🮂', '🮃', '▀', '🮄', '🮅', '🮆', '█']
-        top_str = ''.join(top[int(v * (len(top) - 1))] for v in values)
-        bot_str = ''.join(bot[int(v * (len(bot) - 1))] for v in values)
+        gray = '\x1b[38;5;8m'  # ]
+        reset = '\x1b[39m'  # ]
 
-        top_str = f'┌{top_str}┐'
-        bot_str = f'└{bot_str}┘'
+        lines = []
+        for chset, surr in [
+            (['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'], '┌┐'),
+            (['▔', '🮂', '🮃', '▀', '🮄', '🮅', '🮆', '█'], '└┘'),
+        ]:
+            l_surr, r_surr = surr
+            line = ''.join(chset[int(v * (len(chset) - 1))] for v in values)
+            line = (
+                f'{gray}{l_surr}{line[:left_pos]}{reset}'
+                f'{line[left_pos : right_pos + 1]}'
+                f'{gray}{line[right_pos + 1 :]}{r_surr}{reset}'
+            )
+            lines.append(line)
 
         arrows = f'{" " * (from_left + 1)}^'
         if delta > 1:
@@ -74,7 +83,7 @@ class App:
         parts = []
         if len(control) <= width:
             parts.append(control)
-        parts.extend((top_str, bot_str, arrows))
+        parts.extend((*lines, arrows))
         return '\n'.join(parts)
 
     def add_to_curr_point(self, jump: float) -> None:
