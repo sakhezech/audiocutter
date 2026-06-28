@@ -136,9 +136,11 @@ class App:
                 ui_string = self.build_ui()
                 print(f'\x1b[{n}F\x1b[J{ui_string}', end='', flush=True)
         except KeyboardInterrupt:
-            pass
+            self.proc.terminate()
+            sys.exit(1)
         finally:
             self.proc.terminate()
+            sys.exit(0)
 
     def run(self) -> None:
         with terminal_context():
