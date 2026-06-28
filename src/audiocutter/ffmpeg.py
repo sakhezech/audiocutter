@@ -35,17 +35,31 @@ def cut_audio(
     ).check_returncode()
 
 
+def _patch_ffmpeg_stdin_wave(data: bytes) -> bytes:
+    arr = bytearray(data)
+    size = len(data)
+
+    struct.pack_into('<I', arr, 4, size - 8)
+
+    pos = 12
+    while pos + 8 <= size:
+        chunk_name = arr[pos : pos + 4]
+        chunk_size = struct.unpack_from('<I', arr, pos + 4)[0]
+        if chunk_name == b'data':
+            data_size = size - (pos + 8)
+            struct.pack_into('<I', arr, pos + 4, data_size)
+            return bytes(arr)
+        pos += 8 + chunk_size
+    raise ValueError('no data chunk')
+
+
 def load_wave(file: Path) -> wave.Wave_read:
     proc = subprocess.run(
         ['ffmpeg', '-i', str(file), '-c:a', 'pcm_s16le', '-f', 'wav', '-'],
         capture_output=True,
     )
     proc.check_returncode()
-
-    w = wave.Wave_read(io.BytesIO(proc.stdout))
-    p = w.getparams()
-    w._nframes = (len(proc.stdout) - 44) // (p.nchannels * p.sampwidth)  # type: ignore[reportAttributeAccessIssue]
-    return w
+    return wave.Wave_read(io.BytesIO(_patch_ffmpeg_stdin_wave(proc.stdout)))
 
 
 def make_waveform_values(wav: wave.Wave_read, width: int) -> Sequence[float]:
