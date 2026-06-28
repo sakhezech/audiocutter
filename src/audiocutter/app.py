@@ -53,10 +53,6 @@ class App:
         left_pos = int((start / self.duration) * (width - 1))
         right_pos = int((end / self.duration) * (width - 1))
 
-        from_left = left_pos
-        from_right = width - right_pos - 1
-        delta = width - from_left - from_right
-
         control = f'jump size = {self.jump_size:.2f}s'
         values = self.get_waveform_values(width)
 
@@ -77,9 +73,9 @@ class App:
             )
             lines.append(line)
 
-        arrows = f'{" " * (from_left + 1)}^'
-        if delta > 1:
-            arrows += f'{" " * (delta - 2)}^'
+        arrows = f'{" " * (left_pos + 1)}^'
+        if left_pos != right_pos:
+            arrows += f'{" " * (right_pos - left_pos - 1)}^'
 
         parts = []
         if len(control) <= width:
