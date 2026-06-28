@@ -1,13 +1,14 @@
 import contextlib
+import functools
 import os
 import sys
 import termios
 import tty
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from .ffmpeg import cut_audio
+from .ffmpeg import cut_audio, load_wave, make_waveform_values
 from .mpv import get_duration, mpv_open, set_ab, wait_for_load
 
 
@@ -15,6 +16,7 @@ class App:
     def __init__(self, file: Path, output: Path | None) -> None:
         self.file = file
         self.output = output
+        self.wave = load_wave(file)
 
         with TemporaryDirectory() as base:
             ipc = Path(base) / 'ipc.sock'
@@ -38,6 +40,10 @@ class App:
             'done': ('\n',),
         }
 
+    @functools.cache
+    def get_waveform_values(self, width: int) -> Sequence[float]:
+        return make_waveform_values(self.wave, width)
+
     def build_ui(self) -> str:
         start, end = sorted(self.points)
         width, _ = os.get_terminal_size()
@@ -51,7 +57,16 @@ class App:
         delta = width - from_left - from_right
 
         control = f'jump size = {self.jump_size:.2f}s'
-        bar = f'[{"-" * from_left}{"#" * delta}{"-" * from_right}]'
+        values = self.get_waveform_values(width)
+
+        top = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█']
+        bot = ['▔', '🮂', '🮃', '▀', '🮄', '🮅', '🮆', '█']
+        top_str = ''.join(top[int(v * (len(top) - 1))] for v in values)
+        bot_str = ''.join(bot[int(v * (len(bot) - 1))] for v in values)
+
+        top_str = f'┌{top_str}┐'
+        bot_str = f'└{bot_str}┘'
+
         arrows = f'{" " * (from_left + 1)}^'
         if delta > 1:
             arrows += f'{" " * (delta - 2)}^'
@@ -59,7 +74,7 @@ class App:
         parts = []
         if len(control) <= width:
             parts.append(control)
-        parts.extend((bar, arrows))
+        parts.extend((top_str, bot_str, arrows))
         return '\n'.join(parts)
 
     def add_to_curr_point(self, jump: float) -> None:
