@@ -1,3 +1,4 @@
+import array
 import io
 import struct
 import subprocess
@@ -85,7 +86,6 @@ def make_waveform_values(wav: wave.Wave_read, width: int) -> Sequence[float]:
         maxes = []
         for _ in range(width):
             data = wav.readframes(n)
-            nn = len(data) // 2
-            maxes.append(max(abs(v) for v in struct.unpack(f'<{nn}h', data)))
+            maxes.append(abs(max(array.array('h', data), key=abs)))
         max_max = max(maxes)
         return [v / max_max for v in maxes]
