@@ -23,7 +23,6 @@ def cut_audio(
     elif output.exists() and output.is_dir():
         output /= name
 
-    codec = output.suffix if output.suffix != file.suffix else 'copy'
     subprocess.run(
         [
             'ffmpeg',
@@ -33,8 +32,6 @@ def cut_audio(
             '-stats',
             '-i',
             str(file),
-            '-c',
-            codec,
             '-ss',
             str(start),
             '-to',
