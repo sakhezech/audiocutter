@@ -10,7 +10,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from .ffmpeg import cut_audio, load_wave, make_waveform_values
-from .mpv import get_duration, mpv_open, set_ab, wait_for_load
+from .mpv import Mpv
 
 
 class App:
@@ -21,15 +21,15 @@ class App:
 
         with TemporaryDirectory() as base:
             ipc = Path(base) / 'ipc.sock'
-            self.proc, self.sock = mpv_open(file, ipc)
-        wait_for_load(self.sock)
+            self.mpv = Mpv(self.file, ipc)
+        self.mpv.wait_for_load()
 
-        self.duration = get_duration(self.sock)
+        self.duration = self.mpv.get_duration()
         self.points = [0, self.duration]
         self.point_selected = 0
         self.jump_size = 1
 
-        set_ab(self.sock, *self.points)
+        self.mpv.set_ab(*self.points)
 
         self.top_chset = (' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█')
         self.bot_chset = (' ', '▔', '🮂', '🮃', '▀', '🮄', '🮅', '🮆', '█')
@@ -111,13 +111,13 @@ class App:
             self.cut_audio()
             return False
         elif key in self.keybinds['exit']:
-            self.proc.terminate()
+            self.mpv.terminate()
             sys.exit(0)
         else:
             return False
 
     def cut_audio(self) -> None:
-        self.proc.terminate()
+        self.mpv.terminate()
         s, e = sorted(self.points)
         print()
         cut_audio(self.file, self.output, s, e)
@@ -131,14 +131,14 @@ class App:
             while True:
                 if self.handle_keypress(get_input()):
                     s, e = sorted(self.points)
-                    set_ab(self.sock, s, e, reset=True)
+                    self.mpv.set_ab(s, e, reset=True)
                 n = ui_string.count('\n')
                 ui_string = self.build_ui()
                 print(f'\x1b[{n}F{ui_string}', end='', flush=True)
         except KeyboardInterrupt:
             sys.exit(1)
         finally:
-            self.proc.terminate()
+            self.mpv.terminate()
 
     def run(self) -> None:
         with terminal_context():
