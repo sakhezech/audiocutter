@@ -64,25 +64,25 @@ class App:
     def build_ui(self) -> str:
         start, end = sorted(self.points)
         width, _ = shutil.get_terminal_size()
-        width -= 2
 
-        left_pos = int((start / self.duration) * (width - 1))
-        right_pos = int((end / self.duration) * (width - 1))
+        left_pos = int((start / self.duration) * (width - 2 - 1))
+        right_pos = int((end / self.duration) * (width - 2 - 1))
 
         lines = []
 
-        status_bar = f'jump size = {self.jump_size:.2f}s'
-        if len(status_bar) <= width + 2:
+        status_bar = f'jump size = {self.jump_size:.2f}s'.ljust(width, ' ')
+        if len(status_bar) <= width:
             lines.append(status_bar)
 
         lines.extend(
             colorize_line(line, left_pos + 1, right_pos + 1, '\x1b[38;5;8m')
-            for line in self.build_waveform_2(width, self.height)
+            for line in self.build_waveform_2(width - 2, self.height)
         )
 
         arrows = f'{" " * (left_pos + 1)}^'
         if left_pos != right_pos:
             arrows += f'{" " * (right_pos - left_pos - 1)}^'
+        arrows = arrows.ljust(width, ' ')
         lines.append(arrows)
 
         return '\n'.join(lines)
@@ -134,7 +134,7 @@ class App:
                     set_ab(self.sock, s, e, reset=True)
                 n = ui_string.count('\n')
                 ui_string = self.build_ui()
-                print(f'\x1b[{n}F\x1b[J{ui_string}', end='', flush=True)
+                print(f'\x1b[{n}F{ui_string}', end='', flush=True)
         except KeyboardInterrupt:
             sys.exit(1)
         finally:
