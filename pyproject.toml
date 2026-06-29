@@ -8,6 +8,7 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ['ruff', 'faterunner']
+numpy = ["numpy>=2.4.6"]
 
 [project.scripts]
 audiocutter = 'audiocutter.__main__:cli'
