@@ -5,6 +5,12 @@ import wave
 from collections.abc import Sequence
 from pathlib import Path
 
+np = None
+try:
+    import numpy as np
+except ImportError:
+    pass
+
 
 def cut_audio(
     file: Path, output: Path | None, start: float, end: float
@@ -70,9 +76,16 @@ def make_waveform_values(wav: wave.Wave_read, width: int) -> Sequence[float]:
     wav.setpos(0)
     n = wav.getnframes() // width
 
-    res = []
-    for _ in range(width):
-        data = wav.readframes(n)
-        res.append(max(abs(v) for v in struct.unpack(f'<{n}l', data)))
-    m = max(res)
-    return [v / m for v in res]
+    if np:
+        data = wav.readframes(n * width)
+        arr = np.frombuffer(data, np.int16).reshape((width, -1))
+        maxes = np.amax(np.abs(arr), axis=1)
+        return (maxes / np.max(maxes)).tolist()
+    else:
+        maxes = []
+        for _ in range(width):
+            data = wav.readframes(n)
+            nn = len(data) // 2
+            maxes.append(max(abs(v) for v in struct.unpack(f'<{nn}h', data)))
+        max_max = max(maxes)
+        return [v / max_max for v in maxes]
