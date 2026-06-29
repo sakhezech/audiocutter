@@ -22,7 +22,6 @@ class App:
         with TemporaryDirectory() as base:
             ipc = Path(base) / 'ipc.sock'
             self.mpv = Mpv(self.file, ipc)
-        self.mpv.wait_for_load()
 
         self.duration = self.mpv.get_duration()
         self.points = [0, self.duration]

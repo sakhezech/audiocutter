@@ -33,6 +33,8 @@ class Mpv:
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.connect(str(ipc))
 
+        self._wait_for('playback-restart')
+
     def terminate(self) -> None:
         self.proc.terminate()
 
@@ -68,9 +70,6 @@ class Mpv:
             ).encode()
         )
         return self._wait_for(event if event else req_id)
-
-    def wait_for_load(self) -> None:
-        self._wait_for('playback-restart')
 
     def get_duration(self) -> float:
         return self.send_command(['get_property', 'duration'])['data']
