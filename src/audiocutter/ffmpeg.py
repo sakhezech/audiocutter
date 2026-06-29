@@ -28,7 +28,7 @@ def cut_audio(
             'ffmpeg',
             '-hide_banner',
             '-loglevel',
-            'quiet',
+            'fatal',
             '-stats',
             '-ss',
             str(start),
