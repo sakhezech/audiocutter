@@ -2,7 +2,7 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
-from .app import App
+from .app import App, terminal_context
 
 
 def cli(argv: Sequence[str] | None = None) -> None:
@@ -11,7 +11,8 @@ def cli(argv: Sequence[str] | None = None) -> None:
     parser.add_argument('-o', '--output', type=Path, help='output file')
 
     args = parser.parse_args(argv)
-    App(args.file, args.output).run()
+    with terminal_context():
+        App(args.file, args.output).run()
 
 
 if __name__ == '__main__':

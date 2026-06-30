@@ -128,7 +128,7 @@ class App:
         cut_audio(self.file, self.output, s, e)
         raise AppExitException
 
-    def loop(self) -> None:
+    def run(self) -> None:
         try:
             ui_string = self.build_ui()
             print(ui_string, end='', flush=True)
@@ -146,10 +146,6 @@ class App:
             pass
         finally:
             self.mpv.terminate()
-
-    def run(self) -> None:
-        with terminal_context():
-            self.loop()
 
 
 class AppExitException(Exception):
