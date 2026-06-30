@@ -158,7 +158,7 @@ class AppExitException(Exception):
 
 def make_waveform_values(wave_data: bytes, width: int) -> Sequence[float]:
     data = bytearray(wave_data)
-    n = len(data) // width
+    n = len(data) // 2 // width * 2
     total = n * width
     data = data[:total]
 
