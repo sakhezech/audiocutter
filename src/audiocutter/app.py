@@ -6,7 +6,6 @@ import shutil
 import sys
 import termios
 import tty
-import wave
 from collections.abc import Generator, Sequence
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -25,7 +24,7 @@ class App:
     def __init__(self, file: Path, output: Path | None) -> None:
         self.file = file
         self.output = output
-        self.wave = load_wave(file)
+        self.wave_data = load_wave(file).readframes(-1)
 
         with TemporaryDirectory() as base:
             ipc = Path(base) / 'ipc.sock'
@@ -54,7 +53,7 @@ class App:
 
     @functools.cache
     def build_waveform_2(self, width: int, height: int) -> Sequence[str]:
-        values = make_waveform_values(self.wave, width - 2)
+        values = make_waveform_values(self.wave_data, width - 2)
 
         raw_lines = [
             *reversed(build_waveform(self.top_chset, values, height, 1)),
@@ -157,20 +156,21 @@ class AppExitException(Exception):
     pass
 
 
-def make_waveform_values(wav: wave.Wave_read, width: int) -> Sequence[float]:
-    wav.setpos(0)
-    n = wav.getnframes() // width
+def make_waveform_values(wave_data: bytes, width: int) -> Sequence[float]:
+    data = bytearray(wave_data)
+    n = len(data) // width
+    total = n * width
+    data = data[:total]
 
     if np:
-        data = wav.readframes(n * width)
         arr = np.frombuffer(data, np.int16).reshape((width, -1))
         maxes = np.amax(np.abs(arr), axis=1)
         return (maxes / np.max(maxes)).tolist()
     else:
-        maxes = []
-        for _ in range(width):
-            data = wav.readframes(n)
-            maxes.append(abs(max(array.array('h', data), key=abs)))
+        maxes = [
+            abs(max(array.array('h', data[i : i + n]), key=abs))
+            for i in range(0, total, n)
+        ]
         max_max = max(maxes)
         return [v / max_max for v in maxes]
 
