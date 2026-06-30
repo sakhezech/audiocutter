@@ -39,7 +39,7 @@ class App:
 
         self.top_chset = (' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█')
         self.bot_chset = (' ', '▔', '🮂', '🮃', '▀', '🮄', '🮅', '🮆', '█')
-        self.height = 1 * 8 - 1
+        self.height = 1
 
         self.keybinds = {
             'left': ('<', 'h', '\x1b[D'),
@@ -55,9 +55,10 @@ class App:
     def build_waveform_2(self, width: int, height: int) -> Sequence[str]:
         values = make_waveform_values(self.wave_data, width - 2)
 
+        max_ = height * 8 - 1
         raw_lines = [
-            *reversed(build_waveform(self.top_chset, values, height, 1)),
-            *build_waveform(self.bot_chset, values, height),
+            *reversed(build_waveform(self.top_chset, values, max_, 1)),
+            *build_waveform(self.bot_chset, values, max_),
         ]
 
         raw_lines[0] = f'┌{raw_lines[0]}┐'
