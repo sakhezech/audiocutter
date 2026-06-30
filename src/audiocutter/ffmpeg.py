@@ -1,16 +1,8 @@
-import array
 import io
 import struct
 import subprocess
 import wave
-from collections.abc import Sequence
 from pathlib import Path
-
-np = None
-try:
-    import numpy as np
-except ImportError:
-    pass
 
 
 def cut_audio(
@@ -68,21 +60,3 @@ def load_wave(file: Path) -> wave.Wave_read:
     )
     proc.check_returncode()
     return wave.Wave_read(io.BytesIO(_patch_ffmpeg_stdin_wave(proc.stdout)))
-
-
-def make_waveform_values(wav: wave.Wave_read, width: int) -> Sequence[float]:
-    wav.setpos(0)
-    n = wav.getnframes() // width
-
-    if np:
-        data = wav.readframes(n * width)
-        arr = np.frombuffer(data, np.int16).reshape((width, -1))
-        maxes = np.amax(np.abs(arr), axis=1)
-        return (maxes / np.max(maxes)).tolist()
-    else:
-        maxes = []
-        for _ in range(width):
-            data = wav.readframes(n)
-            maxes.append(abs(max(array.array('h', data), key=abs)))
-        max_max = max(maxes)
-        return [v / max_max for v in maxes]
