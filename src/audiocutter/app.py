@@ -46,7 +46,7 @@ class App:
 
     @functools.cache
     def build_waveform_2(self, width: int, height: int) -> Sequence[str]:
-        values = make_waveform_values(self.wave, width)
+        values = make_waveform_values(self.wave, width - 2)
 
         raw_lines = [
             *reversed(build_waveform(self.top_chset, values, height, 1)),
@@ -75,7 +75,7 @@ class App:
 
         lines.extend(
             colorize_line(line, left_pos + 1, right_pos + 1, '\x1b[38;5;8m')
-            for line in self.build_waveform_2(width - 2, self.height)
+            for line in self.build_waveform_2(width, self.height)
         )
 
         arrows = f'{" " * (left_pos + 1)}^'
