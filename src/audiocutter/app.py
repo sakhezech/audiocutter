@@ -110,8 +110,7 @@ class App:
             self.cut_audio()
             return False
         elif key in self.keybinds['exit']:
-            self.mpv.terminate()
-            sys.exit(0)
+            raise AppExitException
         else:
             return False
 
@@ -120,7 +119,7 @@ class App:
         s, e = sorted(self.points)
         print()
         cut_audio(self.file, self.output, s, e)
-        sys.exit(0)
+        raise AppExitException
 
     def loop(self) -> None:
         try:
@@ -136,12 +135,18 @@ class App:
                 print(f'\x1b[{n}F{ui_string}', end='', flush=True)
         except KeyboardInterrupt:
             sys.exit(1)
+        except AppExitException:
+            pass
         finally:
             self.mpv.terminate()
 
     def run(self) -> None:
         with terminal_context():
             self.loop()
+
+
+class AppExitException(Exception):
+    pass
 
 
 def build_waveform(
