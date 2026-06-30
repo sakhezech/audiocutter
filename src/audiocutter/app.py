@@ -5,6 +5,7 @@ import os
 import shutil
 import sys
 import termios
+import threading
 import tty
 from collections.abc import Generator, Sequence
 from pathlib import Path
@@ -24,7 +25,10 @@ class App:
     def __init__(self, file: Path, output: Path | None) -> None:
         self.file = file
         self.output = output
-        self.wave_data = load_wave(file).readframes(-1)
+        self.wave_data = None
+
+        self._ui_string = ''
+        self._running = False
 
         with TemporaryDirectory() as base:
             ipc = Path(base) / 'ipc.sock'
@@ -41,6 +45,9 @@ class App:
         self.bot_chset = (' ', '▔', '🮂', '🮃', '▀', '🮄', '🮅', '🮆', '█')
         self.height = 1
 
+        self._load_wave()
+        self.wave_thread.join(0.1)
+
         self.keybinds = {
             'left': ('<', 'h', '\x1b[D'),
             'right': ('>', 'l', '\x1b[C'),
@@ -51,15 +58,48 @@ class App:
             'exit': ('\x1b', 'q'),
         }
 
+    def _load_wave(self) -> None:
+        def func() -> None:
+            wave_data = load_wave(self.file).readframes(-1)
+
+            width, _ = shutil.get_terminal_size()
+            self.make_waveform_values(wave_data, width - 2)
+
+            self.wave_data = wave_data
+            if self._running:
+                self.print_ui()
+
+        self.wave_thread = threading.Thread(target=func, daemon=True)
+        self.wave_thread.start()
+
+    @functools.cache
+    def make_waveform_values(
+        self, wave_data: bytes, width: int
+    ) -> Sequence[float]:
+        return make_waveform_values(wave_data, width)
+
     @functools.cache
     def build_waveform_2(self, width: int, height: int) -> Sequence[str]:
-        values = make_waveform_values(self.wave_data, width - 2)
+        assert self.wave_data
+        values = self.make_waveform_values(self.wave_data, width - 2)
 
         max_ = height * 8 - 1
         raw_lines = [
             *reversed(build_waveform(self.top_chset, values, max_, 1)),
             *build_waveform(self.bot_chset, values, max_),
         ]
+
+        raw_lines[0] = f'┌{raw_lines[0]}┐'
+        for i, line in enumerate(raw_lines[1:-1], 1):
+            raw_lines[i] = f'│{line}│'
+        raw_lines[-1] = f'└{raw_lines[-1]}┘'
+
+        return raw_lines
+
+    @functools.cache
+    def build_placeholder_waveform(self, width, height: int) -> Sequence[str]:
+        raw_lines = [' ' * (width - 2) for _ in range(height * 2)]
+        raw_lines[height - 1] = '▁' * (width - 2)
 
         raw_lines[0] = f'┌{raw_lines[0]}┐'
         for i, line in enumerate(raw_lines[1:-1], 1):
@@ -77,13 +117,21 @@ class App:
 
         lines = []
 
-        status_bar = f'jump size = {self.jump_size:.2f}s'.ljust(width, ' ')
+        statuses = [f'jump size = {self.jump_size:.2f}s']
+        if not self.wave_data:
+            statuses.append('loading wave')
+        status_bar = '; '.join(statuses).ljust(width, ' ')
         if len(status_bar) <= width:
             lines.append(status_bar)
 
+        build_waveform = (
+            self.build_waveform_2
+            if self.wave_data
+            else self.build_placeholder_waveform
+        )
         lines.extend(
             colorize_line(line, left_pos + 1, right_pos + 1, '\x1b[38;5;8m')
-            for line in self.build_waveform_2(width, self.height)
+            for line in build_waveform(width, self.height)
         )
 
         arrows = f'{" " * (left_pos + 1)}^'
@@ -129,23 +177,28 @@ class App:
         cut_audio(self.file, self.output, s, e)
         raise AppExitException
 
-    def run(self) -> None:
-        try:
-            ui_string = self.build_ui()
-            print(ui_string, end='', flush=True)
+    def print_ui(self) -> None:
+        n = self._ui_string.count('\n')
+        self._ui_string = self.build_ui()
+        if n:
+            print(f'\x1b[{n}F', end='')
+        print(self._ui_string, end='', flush=True)
 
+    def run(self) -> None:
+        self._running = True
+        try:
+            self.print_ui()
             while True:
                 if self.handle_keypress(get_input()):
                     s, e = sorted(self.points)
                     self.mpv.set_ab(s, e, reset=True)
-                n = ui_string.count('\n')
-                ui_string = self.build_ui()
-                print(f'\x1b[{n}F{ui_string}', end='', flush=True)
+                self.print_ui()
         except KeyboardInterrupt:
             sys.exit(1)
         except AppExitException:
             pass
         finally:
+            self._running = False
             self.mpv.terminate()
 
 
