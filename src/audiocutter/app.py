@@ -20,6 +20,8 @@ try:
 except ImportError:
     pass
 
+LOOP_MODE_TIME = 1.0
+
 
 class App:
     def __init__(self, file: Path, output: Path | None) -> None:
@@ -29,6 +31,7 @@ class App:
 
         self._ui_string = ''
         self._running = False
+        self.loop_mode = False
 
         with TemporaryDirectory() as base:
             ipc = Path(base) / 'ipc.sock'
@@ -54,6 +57,7 @@ class App:
             'up': ('+', 'k', '\x1b[A'),
             'down': ('-', 'j', '\x1b[B'),
             'swap': (' ',),
+            'loop': ('m',),
             'cut': ('\n',),
             'exit': ('\x1b', 'q'),
         }
@@ -118,6 +122,8 @@ class App:
         lines = []
 
         statuses = [f'jump size = {self.jump_size:.2f}s']
+        if self.loop_mode:
+            statuses.append('loop mode')
         if not self.wave_data:
             statuses.append('loading wave')
         status_bar = '; '.join(statuses).ljust(width, ' ')
@@ -157,7 +163,10 @@ class App:
             return False
         elif key in self.keybinds['swap']:
             self.points.toggle_selected()
-            return False
+            return self.loop_mode
+        elif key in self.keybinds['loop']:
+            self.loop_mode = not self.loop_mode
+            return True
         elif key in self.keybinds['cut']:
             self.cut_audio()
             return False
@@ -187,6 +196,11 @@ class App:
             while True:
                 if self.handle_keypress(get_input()):
                     s, e = self.points
+                    if self.loop_mode:
+                        if self.points.selected_index == 0:
+                            e = min(s + LOOP_MODE_TIME, e)
+                        else:
+                            s = max(s, e - LOOP_MODE_TIME)
                     self.mpv.set_ab(s, e, reset=True)
                 self.print_ui()
         except KeyboardInterrupt:
