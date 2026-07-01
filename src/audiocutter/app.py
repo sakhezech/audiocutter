@@ -7,7 +7,7 @@ import sys
 import termios
 import threading
 import tty
-from collections.abc import Generator, Sequence
+from collections.abc import Generator, Iterator, Sequence
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -35,11 +35,11 @@ class App:
             self.mpv = Mpv(self.file, ipc)
 
         self.duration = self.mpv.get_duration()
-        self.points = [0, self.duration]
-        self.point_selected = 0
+        self.points = Points(self.duration)
         self.jump_size = 1
 
-        self.mpv.set_ab(*self.points)
+        s, e = self.points
+        self.mpv.set_ab(s, e)
 
         self.top_chset = (' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█')
         self.bot_chset = (' ', '▔', '🮂', '🮃', '▀', '🮄', '🮅', '🮆', '█')
@@ -109,7 +109,7 @@ class App:
         return raw_lines
 
     def build_ui(self) -> str:
-        start, end = sorted(self.points)
+        start, end = self.points
         width, _ = shutil.get_terminal_size()
 
         left_pos = int((start / self.duration) * (width - 2 - 1))
@@ -142,16 +142,12 @@ class App:
 
         return '\n'.join(lines)
 
-    def add_to_curr_point(self, jump: float) -> None:
-        v = self.points[self.point_selected]
-        self.points[self.point_selected] = min(max(0, v + jump), self.duration)
-
     def handle_keypress(self, key: str) -> bool:
         if key in self.keybinds['left']:
-            self.add_to_curr_point(-self.jump_size)
+            self.points.selected -= self.jump_size
             return True
         elif key in self.keybinds['right']:
-            self.add_to_curr_point(self.jump_size)
+            self.points.selected += self.jump_size
             return True
         elif key in self.keybinds['up']:
             self.jump_size *= 2
@@ -160,7 +156,7 @@ class App:
             self.jump_size /= 2
             return False
         elif key in self.keybinds['swap']:
-            self.point_selected = (self.point_selected + 1) % 2
+            self.points.toggle_selected()
             return False
         elif key in self.keybinds['cut']:
             self.cut_audio()
@@ -190,7 +186,7 @@ class App:
             self.print_ui()
             while True:
                 if self.handle_keypress(get_input()):
-                    s, e = sorted(self.points)
+                    s, e = self.points
                     self.mpv.set_ab(s, e, reset=True)
                 self.print_ui()
         except KeyboardInterrupt:
@@ -200,6 +196,56 @@ class App:
         finally:
             self._running = False
             self.mpv.terminate()
+
+
+class Points:
+    def __init__(self, duration: float) -> None:
+        assert duration > 0
+        self._duration = duration
+        self._points = [0, self._duration]
+        self.selected_index = 0
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}({self._points!r})'
+
+    def toggle_selected(self) -> None:
+        self.selected_index ^= 1
+
+    def __getitem__(self, key: int) -> float:
+        return self._points[key]
+
+    def __setitem__(self, key: int, value: float) -> None:
+        self._points[key] = max(0, min(value, self._duration))
+        if self._points[0] > self._points[1]:
+            self._points[0], self._points[1] = self._points[1], self._points[0]
+            self.toggle_selected()
+
+    def __iter__(self) -> Iterator[float]:
+        return self._points.__iter__()
+
+    @property
+    def left(self):
+        return self[0]
+
+    @left.setter
+    def left(self, value):
+        self[0] = value
+
+    @property
+    def right(self):
+        return self[1]
+
+    @right.setter
+    def right(self, value):
+        self[1] = value
+
+    @property
+    def selected(self):
+        return self[self.selected_index]
+
+    @selected.setter
+    def selected(self, value):
+        self[self.selected_index] = value
 
 
 class AppExitException(Exception):
