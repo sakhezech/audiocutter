@@ -62,7 +62,7 @@ class Mpv:
 
     def send_command(
         self,
-        cmd: Sequence[str],
+        cmd: Sequence[Any],
         event: str | None = None,
     ) -> dict[str, Any]:
         req_id = random.randint(0, 2**12)
@@ -84,12 +84,12 @@ class Mpv:
     ) -> None:
         if reset:
             self.send_command(['ab-loop'])
-        self.send_command(['keypress', 'space'])
+        self.send_command(['set_property', 'pause', True])
         self.send_command(['seek', str(end), 'absolute'], event='seek')
         self.send_command(['ab-loop'])
         self.send_command(['seek', str(start), 'absolute'], event='seek')
         self.send_command(['ab-loop'])
-        self.send_command(['keypress', 'space'])
+        self.send_command(['set_property', 'pause', False])
 
 
 class MpvError(Exception):
