@@ -26,6 +26,8 @@ LOOP_MODE_TIME = 1.0
 class App:
     def __init__(self, file: Path, output: Path | None) -> None:
         self.file = file
+        if not self.file.exists():
+            raise ValueError(f'file does not exist: {self.file}')
         self.output = output
         self.wave_data = None
 
