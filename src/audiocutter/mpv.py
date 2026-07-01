@@ -41,16 +41,18 @@ class Mpv:
     def _wait_for(self, wait: str | int) -> dict[str, Any]:
         buff = bytearray()
         while True:
-            read = self.sock.recv(2**12)
+            exit_code = self.proc.poll()
+            if exit_code is not None:
+                raise MpvError(f'mpv exited with code: {exit_code}')
+            buff.extend(self.sock.recv(2**12))
             try:
-                results = [
-                    json.loads(x) for x in (buff + read).splitlines() if x
-                ]
+                results = [json.loads(x) for x in buff.splitlines() if x]
             except json.JSONDecodeError:
-                buff.extend(read)
                 continue
             buff.clear()
             for res in results:
+                if res.get('error', 'success') != 'success':
+                    raise MpvError(res['error'])
                 if isinstance(wait, int):
                     if res.get('request_id') == wait:
                         return res
@@ -88,3 +90,7 @@ class Mpv:
         self.send_command(['seek', str(start), 'absolute'], event='seek')
         self.send_command(['ab-loop'])
         self.send_command(['keypress', 'space'])
+
+
+class MpvError(Exception):
+    pass
