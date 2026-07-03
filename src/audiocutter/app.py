@@ -171,8 +171,7 @@ class App:
             self.loop_mode = not self.loop_mode
             return True
         elif key in self.keybinds['seek']:
-            pos = self.mpv.get_position()
-            self.points.selected = pos
+            self.points.selected = self.get_playback_time()
             self.points.toggle_selected()
             return self.points.selected_index == 0
         elif key in self.keybinds['cut']:
@@ -197,19 +196,32 @@ class App:
             print(f'\x1b[{n}F', end='')
         print(self._ui_string, end='', flush=True)
 
+    def get_ab_points(self) -> tuple[float, float]:
+        s, e = self.points
+        if self.loop_mode:
+            if self.points.selected_index == 0:
+                e = min(s + LOOP_MODE_TIME, e)
+            else:
+                s = max(s, e - LOOP_MODE_TIME)
+        return s, e
+
+    def get_playback_time(self) -> float:
+        s, e = self.get_ab_points()
+        t = self.mpv.get_position()
+        if t is None:
+            t = s
+        if t <= s:
+            t = e - s + t
+        return t
+
     def run(self) -> None:
         self._running = True
         try:
             self.print_ui()
             while True:
                 if self.handle_keypress(get_input()):
-                    s, e = self.points
-                    if self.loop_mode:
-                        if self.points.selected_index == 0:
-                            e = min(s + LOOP_MODE_TIME, e)
-                        else:
-                            s = max(s, e - LOOP_MODE_TIME)
-                    self.mpv.set_ab(s, e, reset=True)
+                    s, e = self.get_ab_points()
+                    self.mpv.set_ab(s, e, True)
                 self.print_ui()
         except KeyboardInterrupt:
             sys.exit(1)
