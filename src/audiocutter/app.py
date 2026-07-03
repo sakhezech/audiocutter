@@ -2,6 +2,7 @@ import array
 import contextlib
 import functools
 import os
+import select
 import shutil
 import sys
 import termios
@@ -21,6 +22,7 @@ except ImportError:
     pass
 
 LOOP_MODE_TIME = 1.0
+UI_UPDATE_TIMEOUT = 0.05
 
 
 class App:
@@ -33,6 +35,7 @@ class App:
 
         self._ui_string = ''
         self._running = False
+        self._draw_playback = False
         self.loop_mode = False
 
         with TemporaryDirectory() as base:
@@ -138,10 +141,34 @@ class App:
             if self.wave_data
             else self.build_placeholder_waveform
         )
-        lines.extend(
-            colorize_line(line, left_pos + 1, right_pos + 1, '\x1b[38;5;8m')
-            for line in build_waveform(width, self.height)
-        )
+        raw_lines = build_waveform(width, self.height)
+
+        playback_time = self.get_playback_time()
+        if self._draw_playback:
+            pos = int((playback_time / self.duration) * (width - 2 - 1))
+            pos = max(left_pos, min(pos, right_pos))
+            lines.extend(
+                colorize_line(
+                    line,
+                    (
+                        ('\x1b[38;5;8m', 0, left_pos + 1),
+                        ('\x1b[38;5;2m', pos + 1, pos + 1 + 1),
+                        ('\x1b[38;5;8m', right_pos + 1 + 1, width),
+                    ),
+                )
+                for line in raw_lines
+            )
+        else:
+            lines.extend(
+                colorize_line(
+                    line,
+                    (
+                        ('\x1b[38;5;8m', 0, left_pos + 1),
+                        ('\x1b[38;5;8m', right_pos + 1 + 1, width),
+                    ),
+                )
+                for line in raw_lines
+            )
 
         arrows = f'{" " * (left_pos + 1)}^'
         if left_pos != right_pos:
@@ -212,6 +239,8 @@ class App:
             t = s
         if t <= s:
             t = e - s + t
+        else:
+            self._draw_playback = True
         return t
 
     def run(self) -> None:
@@ -220,6 +249,7 @@ class App:
             self.print_ui()
             while True:
                 if self.handle_keypress(get_input()):
+                    self._draw_playback = False
                     s, e = self.get_ab_points()
                     self.mpv.set_ab(s, e)
                 self.print_ui()
@@ -316,13 +346,16 @@ def build_waveform(
     return [''.join(v) for v in res]
 
 
-def colorize_line(line: str, left_pos: int, right_pos: int, color: str) -> str:
+def colorize_line(line: str, intervals: Sequence[tuple[str, int, int]]) -> str:
     reset = '\x1b[39m'
-    return (
-        f'{color}{line[:left_pos]}{reset}'
-        f'{line[left_pos : right_pos + 1]}'
-        f'{color}{line[right_pos + 1 :]}{reset}'
-    )
+
+    chars = list(line)
+    for color, left_pos, right_pos in sorted(
+        intervals, key=lambda x: x[1], reverse=True
+    ):
+        chars.insert(right_pos, reset)
+        chars.insert(left_pos, color)
+    return ''.join(chars)
 
 
 @contextlib.contextmanager
@@ -339,6 +372,8 @@ def terminal_context() -> Generator[None, None, None]:
 
 def get_input() -> str:
     fd = sys.stdin.fileno()
+    if not select.select([sys.stdin], [], [], UI_UPDATE_TIMEOUT)[0]:
+        return ''
     char = sys.stdin.read(1)
     if char == '\x1b':
         os.set_blocking(fd, False)
