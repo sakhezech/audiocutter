@@ -23,6 +23,7 @@ except ImportError:
 
 LOOP_MODE_TIME = 1.0
 UI_UPDATE_TIMEOUT = 0.05
+WAVE_LOAD_TIMEOUT = 0.1
 
 
 class App:
@@ -54,7 +55,7 @@ class App:
         self.height = 1
 
         self._load_wave()
-        self.wave_thread.join(0.1)
+        self.wave_thread.join(WAVE_LOAD_TIMEOUT)
 
         self.keybinds = {
             'left': ('<', 'h', '\x1b[D'),

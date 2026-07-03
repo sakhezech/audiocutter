@@ -8,6 +8,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+SOCKET_WAIT_SLEEP_TIME = 0.05
+
 
 class Mpv:
     def __init__(self, file: Path, ipc: Path) -> None:
@@ -28,7 +30,7 @@ class Mpv:
         )
 
         while not ipc.exists():
-            time.sleep(0.05)
+            time.sleep(SOCKET_WAIT_SLEEP_TIME)
 
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.connect(str(ipc))
