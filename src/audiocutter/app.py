@@ -221,7 +221,7 @@ class App:
             while True:
                 if self.handle_keypress(get_input()):
                     s, e = self.get_ab_points()
-                    self.mpv.set_ab(s, e, True)
+                    self.mpv.set_ab(s, e)
                 self.print_ui()
         except KeyboardInterrupt:
             sys.exit(1)

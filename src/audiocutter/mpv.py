@@ -83,20 +83,10 @@ class Mpv:
         except MpvError:
             return
 
-    def set_ab(
-        self,
-        start: float,
-        end: float,
-        reset: bool = False,
-    ) -> None:
-        if reset:
-            self.send_command(['ab-loop'])
-        self.send_command(['set_property', 'pause', True])
-        self.send_command(['seek', str(end), 'absolute'], event='seek')
-        self.send_command(['ab-loop'])
+    def set_ab(self, start: float, end: float) -> None:
+        self.send_command(['set_property', 'ab-loop-a', start])
+        self.send_command(['set_property', 'ab-loop-b', end])
         self.send_command(['seek', str(start), 'absolute'], event='seek')
-        self.send_command(['ab-loop'])
-        self.send_command(['set_property', 'pause', False])
 
 
 class MpvError(Exception):
