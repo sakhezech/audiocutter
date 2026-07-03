@@ -35,7 +35,6 @@ class App:
         self.wave_data = None
 
         self._ui_string = ''
-        self._running = False
         self._draw_playback = False
         self.loop_mode = False
 
@@ -75,10 +74,7 @@ class App:
 
             width, _ = shutil.get_terminal_size()
             self.make_waveform_values(wave_data, width - 2)
-
             self.wave_data = wave_data
-            if self._running:
-                self.print_ui()
 
         self.wave_thread = threading.Thread(target=func, daemon=True)
         self.wave_thread.start()
@@ -245,7 +241,6 @@ class App:
         return t
 
     def run(self) -> None:
-        self._running = True
         try:
             self.print_ui()
             while True:
@@ -259,7 +254,6 @@ class App:
         except AppExitException:
             pass
         finally:
-            self._running = False
             self.mpv.terminate()
 
 
