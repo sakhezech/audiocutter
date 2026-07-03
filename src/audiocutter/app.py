@@ -60,6 +60,7 @@ class App:
             'down': ('-', 'j', '\x1b[B'),
             'swap': (' ',),
             'loop': ('m',),
+            'seek': ('n',),
             'cut': ('\n',),
             'exit': ('\x1b', 'q'),
         }
@@ -169,6 +170,11 @@ class App:
         elif key in self.keybinds['loop']:
             self.loop_mode = not self.loop_mode
             return True
+        elif key in self.keybinds['seek']:
+            pos = self.mpv.get_position()
+            self.points.selected = pos
+            self.points.toggle_selected()
+            return self.points.selected_index == 0
         elif key in self.keybinds['cut']:
             self.cut_audio()
             return False

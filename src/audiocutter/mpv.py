@@ -76,6 +76,9 @@ class Mpv:
     def get_duration(self) -> float:
         return self.send_command(['get_property', 'duration'])['data']
 
+    def get_position(self) -> float:
+        return self.send_command(['get_property', 'time-pos/full'])['data']
+
     def set_ab(
         self,
         start: float,
