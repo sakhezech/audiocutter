@@ -171,6 +171,10 @@ class App:
         if left_pos != right_pos:
             arrows += f'{" " * (right_pos - left_pos - 1)}^'
         arrows = arrows.ljust(width, ' ')
+        pos = right_pos if self.points.selected_index else left_pos
+        arrows = colorize_line(
+            arrows, (('\x1b[38;5;2m', pos + 1, pos + 1 + 1),)
+        )
         lines.append(arrows)
 
         return '\n'.join(lines)
