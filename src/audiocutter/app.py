@@ -200,7 +200,6 @@ class App:
             return True
         elif key in self.keybinds['seek']:
             self.points.selected = self.get_playback_time()
-            self.points.toggle_selected()
             return True
         elif key in self.keybinds['cut']:
             self.cut_audio()
