@@ -1,3 +1,4 @@
+import collections
 import json
 import os
 import random
@@ -13,6 +14,8 @@ SOCKET_WAIT_SLEEP_TIME = 0.05
 
 class Mpv:
     def __init__(self, file: Path, ipc: Path) -> None:
+        self.queue = collections.deque()
+
         devnull_write = open(os.devnull, 'w')
         devnull_read = open(os.devnull, 'r')
         self.proc = subprocess.Popen(
@@ -43,18 +46,20 @@ class Mpv:
         self.proc.terminate()
 
     def _wait_for(self, wait: str | int) -> dict[str, Any]:
-        buff = bytearray()
+        buf = bytearray()
         while True:
             exit_code = self.proc.poll()
             if exit_code is not None:
                 raise MpvError(f'mpv exited with code: {exit_code}')
-            buff.extend(self.sock.recv(2**12))
+            buf.extend(self.sock.recv(2**32))
             try:
-                results = [json.loads(x) for x in buff.splitlines() if x]
+                self.queue.extend(json.loads(x) for x in buf.splitlines() if x)
             except json.JSONDecodeError:
                 continue
-            buff.clear()
-            for res in results:
+            buf.clear()
+
+            while self.queue:
+                res = self.queue.popleft()
                 if res.get('error', 'success') != 'success':
                     raise MpvError(res['error'])
                 if isinstance(wait, int):
