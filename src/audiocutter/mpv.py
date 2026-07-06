@@ -31,11 +31,13 @@ class Mpv:
 
         while not ipc.exists():
             time.sleep(SOCKET_WAIT_SLEEP_TIME)
-
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.connect(str(ipc))
 
-        self._wait_for('playback-restart')
+        try:
+            self.get_duration()
+        except MpvError:
+            self._wait_for('file-loaded')
 
     def terminate(self) -> None:
         self.proc.terminate()
