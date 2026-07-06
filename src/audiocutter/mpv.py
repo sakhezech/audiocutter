@@ -46,18 +46,7 @@ class Mpv:
         self.proc.terminate()
 
     def _wait_for(self, wait: str | int) -> dict[str, Any]:
-        buf = bytearray()
         while True:
-            exit_code = self.proc.poll()
-            if exit_code is not None:
-                raise MpvError(f'mpv exited with code: {exit_code}')
-            buf.extend(self.sock.recv(2**32))
-            try:
-                self.queue.extend(json.loads(x) for x in buf.splitlines() if x)
-            except json.JSONDecodeError:
-                continue
-            buf.clear()
-
             while self.queue:
                 res = self.queue.popleft()
                 if res.get('error', 'success') != 'success':
@@ -68,6 +57,20 @@ class Mpv:
                 else:
                     if res.get('event') == wait:
                         return res
+
+            buf = bytearray()
+            while True:
+                exit_code = self.proc.poll()
+                if exit_code is not None:
+                    raise MpvError(f'mpv exited with code: {exit_code}')
+                buf.extend(self.sock.recv(2**32))
+                try:
+                    self.queue.extend(
+                        json.loads(x) for x in buf.splitlines() if x
+                    )
+                    break
+                except json.JSONDecodeError:
+                    continue
 
     def send_command(
         self,
