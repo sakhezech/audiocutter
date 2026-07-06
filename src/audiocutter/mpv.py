@@ -80,17 +80,15 @@ class Mpv:
     def get_duration(self) -> float:
         return self.send_command(['get_property', 'duration'])['data']
 
-    def get_position(self) -> float | None:
-        try:
-            res = self.send_command(['get_property', 'audio-pts/full'])
-            return res['data']
-        except MpvError:
-            return
+    def get_position(self) -> float:
+        return self.send_command(['get_property', 'audio-pts/full'])['data']
 
     def set_ab(self, start: float, end: float) -> None:
         self.send_command(['set_property', 'ab-loop-a', start])
         self.send_command(['set_property', 'ab-loop-b', end])
-        self.send_command(['seek', str(start), 'absolute'], event='seek')
+
+    def seek(self, time: float) -> None:
+        self.send_command(['seek', time, 'absolute'], event='seek')
 
 
 class MpvError(Exception):

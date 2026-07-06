@@ -13,7 +13,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from .ffmpeg import cut_audio, load_wave
-from .mpv import Mpv
+from .mpv import Mpv, MpvError
 
 np = None
 try:
@@ -234,7 +234,10 @@ class App:
 
     def get_playback_time(self) -> float:
         s, e = self.get_ab_points()
-        t = self.mpv.get_position()
+        try:
+            t = self.mpv.get_position()
+        except MpvError:
+            t = None
         if t is None:
             t = s
         if t <= s:
@@ -251,6 +254,7 @@ class App:
                     self._draw_playback = False
                     s, e = self.get_ab_points()
                     self.mpv.set_ab(s, e)
+                    self.mpv.seek(s)
                 self.print_ui()
         except KeyboardInterrupt:
             sys.exit(1)
