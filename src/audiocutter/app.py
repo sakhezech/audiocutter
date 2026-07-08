@@ -24,6 +24,7 @@ except ImportError:
 LOOP_MODE_TIME = 1.0
 UI_UPDATE_TIMEOUT = 0.05
 WAVE_LOAD_TIMEOUT = 0.1
+AUTO_TRIM_TOLERANCE = 250
 
 
 class App:
@@ -65,6 +66,7 @@ class App:
             'swap': (' ',),
             'loop': ('m',),
             'seek': ('n',),
+            'trim': ('t',),
             'cut': ('\n',),
             'exit': ('\x1b', 'q'),
         }
@@ -202,6 +204,13 @@ class App:
         elif key in self.keybinds['seek']:
             self.points.selected = self.get_playback_time()
             return True
+        elif key in self.keybinds['trim']:
+            if self.wave_data is not None:
+                s, e = get_trim_normalized_positions(self.wave_data)
+                self.points.left = s * self.duration
+                self.points.right = e * self.duration
+                return True
+            return False
         elif key in self.keybinds['cut']:
             self.cut_audio()
             return False
@@ -337,6 +346,23 @@ def make_waveform_values(wave_data: bytes, width: int) -> Sequence[float]:
         ]
         max_max = max(maxes)
         return [v / max_max for v in maxes]
+
+
+def get_trim_normalized_positions(wave_data: bytes) -> tuple[float, float]:
+    size = len(wave_data) // 2
+    if np:
+        arr = np.abs(np.frombuffer(wave_data, np.int16))
+        arr = np.asarray(arr > AUTO_TRIM_TOLERANCE).nonzero()[0]
+    else:
+        arr = array.array('h', wave_data)
+
+        def _trim_audio_filter(x: tuple[int, int]) -> bool:
+            return abs(x[1]) > AUTO_TRIM_TOLERANCE
+
+        s = next(filter(_trim_audio_filter, enumerate(arr)))
+        e = next(filter(_trim_audio_filter, enumerate(reversed(arr))))
+        arr = [s[0], size - 1 - e[0]]
+    return arr[0] / size, arr[-1] / size
 
 
 def build_waveform(
