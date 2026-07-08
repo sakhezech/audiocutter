@@ -35,6 +35,7 @@ class App:
         self.wave_data = None
 
         self._ui_string = ''
+        self._playback_was_behind_start = False
         self._draw_playback = False
         self.loop_mode = False
 
@@ -242,20 +243,21 @@ class App:
             t = s
         if t <= s:
             t = e - s + t
+            self._playback_was_behind_start = True
         else:
-            self._draw_playback = True
+            self._draw_playback = self._playback_was_behind_start
         return t
 
     def run(self) -> None:
         try:
-            self.print_ui()
             while True:
+                self.print_ui()
                 if self.handle_keypress(get_input()):
-                    self._draw_playback = False
                     s, e = self.get_ab_points()
                     self.mpv.set_ab(s, e)
                     self.mpv.seek(s)
-                self.print_ui()
+                    self._playback_was_behind_start = False
+                    self._draw_playback = False
         except KeyboardInterrupt:
             sys.exit(1)
         except AppExitException:
