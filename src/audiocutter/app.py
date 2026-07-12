@@ -122,8 +122,8 @@ class App:
         start, end = self.points
         width, _ = shutil.get_terminal_size()
 
-        left_pos = int((start / self.duration) * (width - 2 - 1))
-        right_pos = int((end / self.duration) * (width - 2 - 1))
+        left_pos = int((start / self.duration) * (width - 2 - 1)) + 1
+        right_pos = int((end / self.duration) * (width - 2 - 1)) + 1
 
         lines = []
 
@@ -145,15 +145,15 @@ class App:
 
         playback_time = self.get_playback_time()
         if self._draw_playback:
-            pos = int((playback_time / self.duration) * (width - 2 - 1))
+            pos = int((playback_time / self.duration) * (width - 2 - 1)) + 1
             pos = max(left_pos, min(pos, right_pos))
             lines.extend(
                 colorize_line(
                     line,
                     (
-                        ('\x1b[38;5;8m', 0, left_pos + 1),
-                        ('\x1b[38;5;2m', pos + 1, pos + 1 + 1),
-                        ('\x1b[38;5;8m', right_pos + 1 + 1, width),
+                        ('\x1b[38;5;8m', 0, left_pos),
+                        ('\x1b[38;5;2m', pos, pos + 1),
+                        ('\x1b[38;5;8m', right_pos + 1, width),
                     ),
                 )
                 for line in raw_lines
@@ -163,21 +163,19 @@ class App:
                 colorize_line(
                     line,
                     (
-                        ('\x1b[38;5;8m', 0, left_pos + 1),
-                        ('\x1b[38;5;8m', right_pos + 1 + 1, width),
+                        ('\x1b[38;5;8m', 0, left_pos),
+                        ('\x1b[38;5;8m', right_pos + 1, width),
                     ),
                 )
                 for line in raw_lines
             )
 
-        arrows = f'{" " * (left_pos + 1)}^'
+        arrows = f'{" " * left_pos}^'
         if left_pos != right_pos:
             arrows += f'{" " * (right_pos - left_pos - 1)}^'
         arrows = arrows.ljust(width, ' ')
         pos = right_pos if self.points.selected_index else left_pos
-        arrows = colorize_line(
-            arrows, (('\x1b[38;5;2m', pos + 1, pos + 1 + 1),)
-        )
+        arrows = colorize_line(arrows, (('\x1b[38;5;2m', pos, pos + 1),))
         lines.append(arrows)
 
         return '\n'.join(lines)
