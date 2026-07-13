@@ -2,6 +2,8 @@
 
 TUI audio trimming program.
 
+Requires `ffmpeg` and `mpv`.
+
 [audiocutter.webm](https://github.com/user-attachments/assets/284641d2-aef7-49f8-8f8a-3b57149db8a9)
 
 ## Keybinds
