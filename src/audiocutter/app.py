@@ -27,6 +27,9 @@ UI_UPDATE_TIMEOUT = 0.05
 WAVE_LOAD_TIMEOUT = 0.1
 AUTO_TRIM_TOLERANCE = 250
 
+DIM_COLOR = '\x1b[38;5;8m'
+HIGHLIGHT_COLOR = '\x1b[38;5;2m'
+
 
 class App:
     def __init__(self, file: Path, output: Path | None) -> None:
@@ -154,9 +157,9 @@ class App:
                 colorize_line(
                     line,
                     (
-                        ('\x1b[38;5;8m', 0, left_pos),
-                        ('\x1b[38;5;2m', pos, pos + 1),
-                        ('\x1b[38;5;8m', right_pos + 1, width),
+                        (DIM_COLOR, 0, left_pos),
+                        (HIGHLIGHT_COLOR, pos, pos + 1),
+                        (DIM_COLOR, right_pos + 1, width),
                     ),
                 )
                 for line in raw_lines
@@ -166,8 +169,8 @@ class App:
                 colorize_line(
                     line,
                     (
-                        ('\x1b[38;5;8m', 0, left_pos),
-                        ('\x1b[38;5;8m', right_pos + 1, width),
+                        (DIM_COLOR, 0, left_pos),
+                        (DIM_COLOR, right_pos + 1, width),
                     ),
                 )
                 for line in raw_lines
@@ -178,7 +181,7 @@ class App:
             arrows += f'{" " * (right_pos - left_pos - 1)}^'
         arrows = arrows.ljust(width, ' ')
         pos = right_pos if self.points.selected_index else left_pos
-        arrows = colorize_line(arrows, (('\x1b[38;5;2m', pos, pos + 1),))
+        arrows = colorize_line(arrows, ((HIGHLIGHT_COLOR, pos, pos + 1),))
         lines.append(arrows)
 
         return '\n'.join(lines)
