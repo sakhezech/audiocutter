@@ -86,7 +86,7 @@ class App:
         thread.start()
         thread.join(WAVE_LOAD_TIMEOUT)
 
-    def cut_audio(self) -> None:
+    def cut_audio(self) -> Never:
         self.mpv.terminate()
         s, e = self.points
         cut_audio(self.file, self.output, s, e)
@@ -154,9 +154,8 @@ class App:
             return True
         return False
 
-    def _handle_cut(self) -> bool:
+    def _handle_cut(self) -> Never:
         self.cut_audio()
-        return False
 
     def _handle_exit(self) -> Never:
         raise AppExitException
@@ -348,8 +347,8 @@ class AppExitException(Exception):
 
 
 def make_keybinds(
-    keybinds: dict[Collection[str], Callable[[], bool | Never]],
-) -> dict[str, Callable[[], bool | Never]]:
+    keybinds: dict[Collection[str], Callable[[], bool] | Callable[[], Never]],
+) -> dict[str, Callable[[], bool] | Callable[[], Never]]:
     result = {}
     for k, v in keybinds.items():
         for k_p in k:
