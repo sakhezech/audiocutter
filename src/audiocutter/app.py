@@ -37,8 +37,8 @@ class App:
         self.wave_data = None
 
         self._ui_string = ''
-        self._playback_was_behind_start = False
-        self._draw_playback = False
+        self._ui_playback_was_behind_start = False
+        self._ui_draw_playback = False
         self.loop_mode = False
 
         with TemporaryDirectory() as base:
@@ -146,8 +146,8 @@ class App:
         )
         raw_lines = build_waveform(width, self.height)
 
-        playback_time = self.get_playback_time()
-        if self._draw_playback:
+        if self._ui_draw_playback:
+            playback_time = self.get_playback_time()
             pos = int((playback_time / self.duration) * (width - 2 - 1)) + 1
             pos = max(left_pos, min(pos, right_pos))
             lines.extend(
@@ -252,31 +252,39 @@ class App:
                 s = max(s, e - LOOP_MODE_TIME)
         return s, e
 
+    def get_raw_playback_time(self) -> float:
+        try:
+            return self.mpv.get_position()
+        except MpvError:
+            s, _ = self.get_ab_points()
+            return s
+
     def get_playback_time(self) -> float:
         s, e = self.get_ab_points()
-        try:
-            t = self.mpv.get_position()
-        except MpvError:
-            t = None
-        if t is None:
-            t = s
+        t = self.get_raw_playback_time()
         if t <= s:
             t = e - s + t
-            self._playback_was_behind_start = True
-        else:
-            self._draw_playback = self._playback_was_behind_start
         return t
+
+    def fix_playback_ui_state(self) -> None:
+        s, e = self.get_ab_points()
+        t = self.get_raw_playback_time()
+        if t <= s:
+            self._ui_playback_was_behind_start = True
+        else:
+            self._ui_draw_playback = self._ui_playback_was_behind_start
 
     def run(self) -> None:
         try:
             while True:
+                self.fix_playback_ui_state()
                 self.print_ui()
                 if self.handle_keypress(get_input()):
                     s, e = self.get_ab_points()
                     self.mpv.set_ab(s, e)
                     self.mpv.seek(s)
-                    self._playback_was_behind_start = False
-                    self._draw_playback = False
+                    self._ui_playback_was_behind_start = False
+                    self._ui_draw_playback = False
         except KeyboardInterrupt:
             sys.exit(1)
         except AppExitException:
