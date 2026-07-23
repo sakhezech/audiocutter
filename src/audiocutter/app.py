@@ -8,9 +8,10 @@ import sys
 import termios
 import threading
 import tty
-from collections.abc import Generator, Iterator, Sequence
+from collections.abc import Callable, Collection, Generator, Iterator, Sequence
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Never
 
 from .ffmpeg import cut_audio, load_wave
 from .mpv import Mpv, MpvError
@@ -58,18 +59,20 @@ class App:
         self._load_wave()
         self.wave_thread.join(WAVE_LOAD_TIMEOUT)
 
-        self.keybinds = {
-            'left': ('<', 'h', '\x1b[D'),
-            'right': ('>', 'l', '\x1b[C'),
-            'up': ('+', 'k', '\x1b[A'),
-            'down': ('-', 'j', '\x1b[B'),
-            'swap': (' ',),
-            'loop': ('m',),
-            'seek': ('n',),
-            'trim': ('t',),
-            'cut': ('\n',),
-            'exit': ('\x1b', 'q'),
-        }
+        self.keybinds = make_keybinds(
+            {
+                ('<', 'h', '\x1b[D'): self._handle_left,
+                ('>', 'l', '\x1b[C'): self._handle_right,
+                ('+', 'k', '\x1b[A'): self._handle_up,
+                ('-', 'j', '\x1b[B'): self._handle_down,
+                (' ',): self._handle_swap,
+                ('m',): self._handle_loop,
+                ('n',): self._handle_seek,
+                ('t',): self._handle_trim,
+                ('\n',): self._handle_cut,
+                ('\x1b', 'q'): self._handle_exit,
+            }
+        )
 
     def _load_wave(self) -> None:
         def func() -> None:
@@ -180,42 +183,51 @@ class App:
 
         return '\n'.join(lines)
 
+    def _handle_left(self) -> bool:
+        self.points.selected -= self.jump_size
+        return True
+
+    def _handle_right(self) -> bool:
+        self.points.selected += self.jump_size
+        return True
+
+    def _handle_up(self) -> bool:
+        self.jump_size *= 2
+        return False
+
+    def _handle_down(self) -> bool:
+        self.jump_size /= 2
+        return False
+
+    def _handle_swap(self) -> bool:
+        self.points.toggle_selected()
+        return self.loop_mode
+
+    def _handle_loop(self) -> bool:
+        self.loop_mode = not self.loop_mode
+        return True
+
+    def _handle_seek(self) -> bool:
+        self.points.selected = self.get_playback_time()
+        return True
+
+    def _handle_trim(self) -> bool:
+        if self.wave_data is not None:
+            s, e = get_trim_normalized_positions(self.wave_data)
+            self.points.left = s * self.duration
+            self.points.right = e * self.duration
+            return True
+        return False
+
+    def _handle_cut(self) -> bool:
+        self.cut_audio()
+        return False
+
+    def _handle_exit(self) -> Never:
+        raise AppExitException
+
     def handle_keypress(self, key: str) -> bool:
-        if key in self.keybinds['left']:
-            self.points.selected -= self.jump_size
-            return True
-        elif key in self.keybinds['right']:
-            self.points.selected += self.jump_size
-            return True
-        elif key in self.keybinds['up']:
-            self.jump_size *= 2
-            return False
-        elif key in self.keybinds['down']:
-            self.jump_size /= 2
-            return False
-        elif key in self.keybinds['swap']:
-            self.points.toggle_selected()
-            return self.loop_mode
-        elif key in self.keybinds['loop']:
-            self.loop_mode = not self.loop_mode
-            return True
-        elif key in self.keybinds['seek']:
-            self.points.selected = self.get_playback_time()
-            return True
-        elif key in self.keybinds['trim']:
-            if self.wave_data is not None:
-                s, e = get_trim_normalized_positions(self.wave_data)
-                self.points.left = s * self.duration
-                self.points.right = e * self.duration
-                return True
-            return False
-        elif key in self.keybinds['cut']:
-            self.cut_audio()
-            return False
-        elif key in self.keybinds['exit']:
-            raise AppExitException
-        else:
-            return False
+        return self.keybinds.get(key, lambda: False)()
 
     def cut_audio(self) -> None:
         self.mpv.terminate()
@@ -325,6 +337,16 @@ class Points:
 
 class AppExitException(Exception):
     pass
+
+
+def make_keybinds(
+    keybinds: dict[Collection[str], Callable[[], bool | Never]],
+) -> dict[str, Callable[[], bool | Never]]:
+    result = {}
+    for k, v in keybinds.items():
+        for k_p in k:
+            result[k_p] = v
+    return result
 
 
 def make_waveform_values(wave_data: bytes, width: int) -> Sequence[float]:
