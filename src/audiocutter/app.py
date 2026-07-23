@@ -60,7 +60,6 @@ class App:
         self.height = 1
 
         self._load_wave()
-        self.wave_thread.join(WAVE_LOAD_TIMEOUT)
 
         self.keybinds = make_keybinds(
             {
@@ -85,8 +84,9 @@ class App:
             self.make_waveform_values(wave_data, width - 2)
             self.wave_data = wave_data
 
-        self.wave_thread = threading.Thread(target=func, daemon=True)
-        self.wave_thread.start()
+        thread = threading.Thread(target=func, daemon=True)
+        thread.start()
+        thread.join(WAVE_LOAD_TIMEOUT)
 
     @functools.cache
     def make_waveform_values(
