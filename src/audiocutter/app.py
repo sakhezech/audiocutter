@@ -16,11 +16,10 @@ from typing import Never
 from .ffmpeg import cut_audio, load_wave
 from .mpv import Mpv, MpvError
 
-np = None
 try:
     import numpy as np
 except ImportError:
-    pass
+    np = None
 
 LOOP_MODE_TIME = 1.0
 UI_UPDATE_TIMEOUT = 0.05
@@ -37,12 +36,9 @@ class App:
         if not self.file.exists():
             raise ValueError(f'file does not exist: {self.file}')
         self.output = output
-        self.wave_data = None
 
-        self._ui_string = ''
-        self._ui_playback_was_behind_start = False
-        self._ui_draw_playback = False
-        self.loop_mode = False
+        self.wave_data = None
+        self._load_wave()
 
         with TemporaryDirectory() as base:
             ipc = Path(base) / 'ipc.sock'
@@ -51,6 +47,7 @@ class App:
         self.duration = self.mpv.get_duration()
         self.points = Points(self.duration)
         self.jump_size = 1
+        self.loop_mode = False
 
         s, e = self.points
         self.mpv.set_ab(s, e)
@@ -58,8 +55,9 @@ class App:
         self.top_chset = (' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█')
         self.bot_chset = (' ', '▔', '🮂', '🮃', '▀', '🮄', '🮅', '🮆', '█')
         self.height = 1
-
-        self._load_wave()
+        self._ui_string = ''
+        self._ui_playback_was_behind_start = False
+        self._ui_draw_playback = False
 
         self.keybinds = make_keybinds(
             {
@@ -87,6 +85,81 @@ class App:
         thread = threading.Thread(target=func, daemon=True)
         thread.start()
         thread.join(WAVE_LOAD_TIMEOUT)
+
+    def cut_audio(self) -> None:
+        self.mpv.terminate()
+        s, e = self.points
+        cut_audio(self.file, self.output, s, e)
+        raise AppExitException
+
+    def get_ab_points(self) -> tuple[float, float]:
+        s, e = self.points
+        if self.loop_mode:
+            if self.points.selected_index == 0:
+                e = min(s + LOOP_MODE_TIME, e)
+            else:
+                s = max(s, e - LOOP_MODE_TIME)
+        return s, e
+
+    def get_raw_playback_time(self) -> float:
+        try:
+            return self.mpv.get_position()
+        except MpvError:
+            s, _ = self.get_ab_points()
+            return s
+
+    def get_playback_time(self) -> float:
+        s, e = self.get_ab_points()
+        t = self.get_raw_playback_time()
+        if t <= s:
+            t = e - s + t
+        return t
+
+    def handle_keypress(self, key: str) -> bool:
+        return self.keybinds.get(key, lambda: False)()
+
+    def _handle_left(self) -> bool:
+        self.points.selected -= self.jump_size
+        return True
+
+    def _handle_right(self) -> bool:
+        self.points.selected += self.jump_size
+        return True
+
+    def _handle_up(self) -> bool:
+        self.jump_size *= 2
+        return False
+
+    def _handle_down(self) -> bool:
+        self.jump_size /= 2
+        return False
+
+    def _handle_swap(self) -> bool:
+        self.points.toggle_selected()
+        return self.loop_mode
+
+    def _handle_loop(self) -> bool:
+        self.loop_mode = not self.loop_mode
+        return True
+
+    def _handle_seek(self) -> bool:
+        self.points.selected = self.get_playback_time()
+        return True
+
+    def _handle_trim(self) -> bool:
+        if self.wave_data is not None:
+            s, e = get_trim_normalized_positions(self.wave_data)
+            self.points.left = s * self.duration
+            self.points.right = e * self.duration
+            return True
+        return False
+
+    def _handle_cut(self) -> bool:
+        self.cut_audio()
+        return False
+
+    def _handle_exit(self) -> Never:
+        raise AppExitException
 
     @functools.cache
     def make_waveform_values(
@@ -186,88 +259,12 @@ class App:
 
         return '\n'.join(lines)
 
-    def _handle_left(self) -> bool:
-        self.points.selected -= self.jump_size
-        return True
-
-    def _handle_right(self) -> bool:
-        self.points.selected += self.jump_size
-        return True
-
-    def _handle_up(self) -> bool:
-        self.jump_size *= 2
-        return False
-
-    def _handle_down(self) -> bool:
-        self.jump_size /= 2
-        return False
-
-    def _handle_swap(self) -> bool:
-        self.points.toggle_selected()
-        return self.loop_mode
-
-    def _handle_loop(self) -> bool:
-        self.loop_mode = not self.loop_mode
-        return True
-
-    def _handle_seek(self) -> bool:
-        self.points.selected = self.get_playback_time()
-        return True
-
-    def _handle_trim(self) -> bool:
-        if self.wave_data is not None:
-            s, e = get_trim_normalized_positions(self.wave_data)
-            self.points.left = s * self.duration
-            self.points.right = e * self.duration
-            return True
-        return False
-
-    def _handle_cut(self) -> bool:
-        self.cut_audio()
-        return False
-
-    def _handle_exit(self) -> Never:
-        raise AppExitException
-
-    def handle_keypress(self, key: str) -> bool:
-        return self.keybinds.get(key, lambda: False)()
-
-    def cut_audio(self) -> None:
-        self.mpv.terminate()
-        s, e = sorted(self.points)
-        print()
-        cut_audio(self.file, self.output, s, e)
-        raise AppExitException
-
     def print_ui(self) -> None:
         n = self._ui_string.count('\n')
         self._ui_string = self.build_ui()
         if n:
             print(f'\x1b[{n}F', end='')
         print(self._ui_string, end='', flush=True)
-
-    def get_ab_points(self) -> tuple[float, float]:
-        s, e = self.points
-        if self.loop_mode:
-            if self.points.selected_index == 0:
-                e = min(s + LOOP_MODE_TIME, e)
-            else:
-                s = max(s, e - LOOP_MODE_TIME)
-        return s, e
-
-    def get_raw_playback_time(self) -> float:
-        try:
-            return self.mpv.get_position()
-        except MpvError:
-            s, _ = self.get_ab_points()
-            return s
-
-    def get_playback_time(self) -> float:
-        s, e = self.get_ab_points()
-        t = self.get_raw_playback_time()
-        if t <= s:
-            t = e - s + t
-        return t
 
     def fix_playback_ui_state(self) -> None:
         s, e = self.get_ab_points()
