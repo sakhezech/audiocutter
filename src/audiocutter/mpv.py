@@ -1,6 +1,5 @@
 import collections
 import json
-import os
 import random
 import socket
 import subprocess
@@ -15,21 +14,17 @@ SOCKET_WAIT_SLEEP_TIME = 0.05
 class Mpv:
     def __init__(self, file: Path, ipc: Path) -> None:
         self.queue = collections.deque()
-
-        devnull_write = open(os.devnull, 'w')
-        devnull_read = open(os.devnull, 'r')
         self.proc = subprocess.Popen(
             [
                 'mpv',
                 '--no-video',
                 '--keep-open',
-                '--quiet',
                 f'--input-ipc-server={ipc}',
                 str(file),
             ],
-            stdin=devnull_read,
-            stdout=devnull_write,
-            stderr=devnull_write,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
 
         while not ipc.exists():
