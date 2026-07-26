@@ -262,8 +262,9 @@ class App:
         n = self._ui_string.count('\n')
         self._ui_string = self.build_ui()
         if n:
-            print(f'\x1b[{n}F', end='')
-        print(self._ui_string, end='', flush=True)
+            sys.stderr.write(f'\x1b[{n}F')
+        sys.stderr.write(self._ui_string)
+        sys.stderr.flush()
 
     def fix_playback_ui_state(self) -> None:
         s, e = self.get_ab_points()
@@ -417,13 +418,13 @@ def colorize_line(line: str, intervals: Sequence[tuple[str, int, int]]) -> str:
 
 @contextlib.contextmanager
 def terminal_context() -> Generator[None, None, None]:
-    fd = sys.stdin.fileno()
+    fd = sys.stderr.fileno()
     old = tty.setcbreak(fd)
-    print('\x1b[?25l', end='', flush=True)
+    sys.stderr.write('\x1b[?25l')
     try:
         yield
     finally:
-        print('\x1b[?25h', end='', flush=True)
+        sys.stderr.write('\x1b[?25h')
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
