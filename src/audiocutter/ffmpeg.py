@@ -14,6 +14,7 @@ def cut_audio(
         output = name
     elif output.exists() and output.is_dir():
         output /= name
+    fmt = (output.suffix or file.suffix or 'mp3').removeprefix('.')
 
     subprocess.run(
         [
@@ -29,7 +30,7 @@ def cut_audio(
             '-i',
             str(file),
             '-f',
-            file.suffix.removeprefix('.'),
+            fmt,
             str(output),
         ]
     ).check_returncode()
