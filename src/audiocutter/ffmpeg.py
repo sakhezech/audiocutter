@@ -41,17 +41,11 @@ def _patch_ffmpeg_stdin_wave(data: bytes) -> bytes:
     size = len(data)
 
     struct.pack_into('<I', arr, 4, size - 8)
-
-    pos = 12
-    while pos + 8 <= size:
-        chunk_name = arr[pos : pos + 4]
-        chunk_size = struct.unpack_from('<I', arr, pos + 4)[0]
-        if chunk_name == b'data':
-            data_size = size - (pos + 8)
-            struct.pack_into('<I', arr, pos + 4, data_size)
-            return bytes(arr)
-        pos += 8 + chunk_size
-    raise ValueError('no data chunk')
+    pos = arr.find(b'data')
+    if pos == -1:
+        raise ValueError('no data chunk')
+    struct.pack_into('<I', arr, pos + 4, size - pos - 8)
+    return bytes(arr)
 
 
 def load_wave(file: Path) -> wave.Wave_read:
